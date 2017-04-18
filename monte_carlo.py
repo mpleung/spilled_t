@@ -2,13 +2,6 @@ import numpy as np, networkx as nx, math, pandas as pd, os, sys
 from functions import *
 from scipy import sparse
 
-# Output folder
-os.chdir('..')
-if not os.path.exists('output'):
-    os.makedirs('output')
-os.chdir('output')
-os.chdir('../code')
-
 ##########################
 ### Generate variables ###
 ##########################
@@ -16,11 +9,10 @@ os.chdir('../code')
 seed = 0
 np.random.seed(seed=seed)
 
-B = 200
-network_size = [500]
+B = 1000
+network_size = [1000, 2500, 5000]
 alpha = 0.95 # desired coverage
 
-edeg = 3 # limiting expected degree for ER model
 p_d = 0.3 # probability of being treated
 eff_obs = np.zeros((2,B,len(network_size))) # obs in 'cell'
 
@@ -70,12 +62,12 @@ for i in range(len(network_size)):
         G_temp = gen_G(D, RGG_minus, RGG_exo, V_exo, theta_nf[2], N)
         G = snap_to_nx(G_temp)
 
-        # random coefficients
         G_sparse = nx.to_scipy_sparse_matrix(G)
         degrees = G_sparse*np.ones(N)
-        theta = np.vstack([G_sparse*np.random.normal(1,1,N) / (degrees + np.ones(N)*(degrees==0)), np.random.normal(1,1,N), np.random.normal(1,1,N), np.random.normal(-1,1,N), np.random.normal(-1,1,N)]).T
-
         A = dep_graph(G)
+
+        # random coefficients
+        theta = np.vstack([G_sparse*np.random.normal(1,1,N) / (degrees + np.ones(N)*(degrees==0)), np.random.normal(1,1,N), np.random.normal(1,1,N), np.random.normal(-1,1,N), np.random.normal(-1,1,N)]).T
 
         D = np.random.binomial(1, p_d, N)
         X = DTG_array(G, D)
@@ -108,7 +100,7 @@ for i in range(len(network_size)):
 ### Print results ###
 #####################
 
-filename = '../output/results.txt'
+filename = 'results.txt'
 if os.path.isfile(filename):
     os.remove(filename)
 f = open(filename, 'a')
