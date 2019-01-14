@@ -3,30 +3,11 @@ from scipy import spatial, sparse
 from scipy.stats import norm
 from scipy.special import binom
 
-###################
 ### Network DGP ###
-###################
-
-# Most of these functions are taken from Leung (2017), 'A Weak Law for Moments of Pairwise-Stable Networks.'
-
-def RGG(positions, r):
-    """ 
-    Returns an RGG (networkx object) from a given n-vector of dx1 positions (nxd matrix). 
-    
-    positions = vector of node positions.
-    r = linking threshold.
-    """
-    kdtree = spatial.KDTree(positions)
-    pairs = kdtree.query_pairs(r) # default is Euclidean norm
-    RGG = nx.Graph()
-    RGG.add_nodes_from(range(len(positions)))
-    for edge in (i for i in list(pairs)):
-        RGG.add_edge(edge[0],edge[1])
-    return RGG
 
 def gen_RGG(positions, r):
     """ 
-    Returns an RGG (snap object) from a given N-vector of dx1 positions (Nxd matrix). 
+    Returns an RGG from a given N-vector of dx1 positions (Nxd matrix). 
     
     positions = vector of node positions.
     r = linking threshold.
@@ -38,29 +19,6 @@ def gen_RGG(positions, r):
         RGG.AddEdge(edge[0],edge[1])
     return RGG
 
-def copy_graph(graph):
-    """
-    Returns a copy of a snap network.
-    
-    Credit: https://stackoverflow.com/questions/23133372/how-to-copy-a-graph-object-in-snap-py
-    """
-    tmpfile = '.copy.bin'
-    
-    # Saving to tmp file
-    FOut = snap.TFOut(tmpfile)
-    graph.Save(FOut)
-    FOut.Flush()
-    
-    # Loading to new graph
-    FIn = snap.TFIn(tmpfile)
-    graphtype = type(graph)
-    new_graph = graphtype.New()
-    new_graph = new_graph.Load(FIn)
-    
-    os.remove(tmpfile)
-    
-    return new_graph
-
 def ball_vol(d,r):
     """
     Returns the volume of a d-dimensional ball of radius r.
@@ -68,13 +26,13 @@ def ball_vol(d,r):
     return math.pi**(d/2) * float(r)**d / scipy.special.gamma(d/2+1)
 
 
-def gen_r(theta, d, N):
+def gen_kappa(theta, d):
     """
-    Returns the RGG threshold r.
+    Returns kappa. Recall r_n = (kappa/n)^{1/d}.
 
     theta = true parameter.
     d = dimension of node positions.
-    N = number of nodes.
+    n = mean number of nodes.
     """
     vol = ball_vol(d,1)
 
@@ -83,11 +41,7 @@ def gen_r(theta, d, N):
     Phi0 = norm.cdf(-theta[0]/theta[3]) - norm.cdf(-(theta[0] + theta[2])/theta[3])
     gamma = math.sqrt( Phi2**2*0.25 + Phi1**2*0.5 + Phi0**2*0.25)
     
-    # kappa = limit of nr^d
-    kappa = 1/(vol*gamma) - 0.8
-    
-    # r = (kappa/n)^(1/d)
-    return ((kappa/N)**(1/float(d)), kappa)
+    return 1/(vol*gamma) - 0.3
 
 
 def gen_V_exo(Z, eps, theta):
@@ -121,8 +75,8 @@ def gen_D(Pi, V_exo, theta2):
     theta2 = transitivity parameter (theta[2]).
     """
     N = V_exo.shape[0]
-    D = copy_graph(Pi)
-    Pi_minus = copy_graph(Pi)
+    D = snap.ConvertGraph(snap.PUNGraph, Pi)
+    Pi_minus = snap.ConvertGraph(snap.PUNGraph, Pi)
     Pi_exo = snap.GenRndGnm(snap.PUNGraph, N, 0) 
 
     for edge in Pi.Edges():
@@ -223,6 +177,27 @@ def gen_G(D, Pi_minus, Pi_exo, V_exo, theta2, N):
 
     return G
 
+def gen_SNF(theta, d, N, r):
+    """
+    Generates pairwise-stable network on N nodes.
+    """
+        
+    # positions uniformly distributed on unit cube
+    positions = np.random.uniform(0,1,(N,d))
+    # binary attribute
+    Z = np.random.binomial(1, 0.5, N)
+    # random utility terms
+    eps = sparse.triu(np.random.normal(size=(N,N)), 1) * theta[3]
+    # V minus endogenous statistic
+    V_exo = gen_V_exo(Z, eps, theta)
+    
+    # generate random graphs 
+    RGG = gen_RGG(positions, r) # initial RGG
+    (D, RGG_minus, RGG_exo) = gen_D(RGG, V_exo, theta[2])
+    # generate pairwise-stable network
+    
+    return gen_G(D, RGG_minus, RGG_exo, V_exo, theta[2], N)
+
 def snap_to_nx(A):
     """ 
     Converts snap object to networkx object.
@@ -233,9 +208,7 @@ def snap_to_nx(A):
         G.add_edge(edge.GetSrcNId(), edge.GetDstNId())
     return G
 
-###################
 ### Outcome DGP ###
-###################
 
 def DTG_array(G, D):
     """
@@ -245,8 +218,8 @@ def DTG_array(G, D):
     G = networkx graph object with nodes labeled 0, ..., n-1.
     D = 1xn treatment assignment vector.
     """
-    num_nhbrs = nx.degree(G).values()
-    num_nhbrs_treated = [D[G.neighbors(i)].sum() for i in G.nodes()]
+    num_nhbrs = np.array([G.degree[i] for i in G.nodes])
+    num_nhbrs_treated = [D[[j for j in G.neighbors(i)]].sum() for i in G.nodes]
     return np.vstack([D, num_nhbrs_treated, num_nhbrs]).T.astype('float')
 
 def responses(X, theta):
@@ -256,9 +229,6 @@ def responses(X, theta):
     theta = nx5, each row a vector of random coefficients.
     X = output of DTG_array().
     """
-    tmp = X.copy()
-    tmp[X[:,2]==0,1] = 0
-    tmp[X[:,2]==0,2] = 1
     Z = np.vstack([np.ones(len(X)), X[:,0], X[:,1], X[:,1]**2, X[:,1]*X[:,2]]).T
     return np.diag(np.dot(Z, theta.T))
 
@@ -273,9 +243,7 @@ def responses_linear(X, eps, theta):
     Z = np.hstack([np.ones(len(X))[:,np.newaxis], X])
     return np.dot(Z, theta) + eps
 
-##################
-### ESTIMATION ###
-##################
+### OLS Estimation ###
 
 def ind(d,t,g,X):
     """
@@ -303,8 +271,8 @@ def lin_reg(Y,X,A,theta,alpha):
     1-alpha = desired coverage.
     """
     fail = 0
-    Z = np.hstack([np.ones(len(X))[:,np.newaxis], X])
-    P = np.linalg.inv(Z.T.dot(Z))
+    Z = np.hstack([np.ones(Y.shape[0])[:,np.newaxis], X])
+    P = np.linalg.pinv(Z.T.dot(Z))
     est = P.dot(Z.T.dot(Y))
 
     resid = Y - Z.dot(est)
@@ -322,6 +290,8 @@ def lin_reg(Y,X,A,theta,alpha):
     q = abs(norm.ppf((1-alpha)/2))
     cover = (est - q * SE < theta) * (theta < est + q * SE)
     return est,SE,cover,fail
+
+### Nonparametric Estimation ###
 
 def ASF(d, t, g, Y, X):
     """
