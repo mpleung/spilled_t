@@ -19,7 +19,7 @@ data['preintensive'] = data['intensive']*(1-data['delay'])
 # drop all nodes who don't show up in G
 drops = np.zeros(data.shape[0])
 for i,nid in enumerate(data['id']):
-    if not G.has_node(nid): drops[i] == 1
+    if not G.has_node(nid): drops[i] = 1
 data = data[drops==0]
 
 data2 = data.set_index('village')
