@@ -17,7 +17,7 @@ data = pd.read_csv('data/cai_node_data.csv', header=None).values
 data = data[np.argsort(data[:,0])]
 Y = data[:,2].astype('float')
 main_regressors = np.vstack([data[:,3], data[:,4]]).T # treatment, fraction of treated friends
-friend_counts = np.vstack([data[:,5]==2, data[:,5]==3, data[:,5]==4, data[:,5]==5]).T # dummies for # of friends
+friend_counts = np.vstack([data[:,5]==4, data[:,5]==5]).T # dummies for # of friends; no one has 2 or 3 friends in the restricted dataset
 data_controls = data[:,6:data.shape[1]] # cai et al controls
 X = np.hstack([main_regressors, friend_counts, data_controls])
 X = X.astype('float')

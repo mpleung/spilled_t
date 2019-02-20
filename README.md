@@ -16,5 +16,5 @@ Contents:
 
 To run the simulations, execute monte\_carlo.py. The output is stored in a file 'results.txt' in the 'sims' folder. 
 
-To run the empirical application, execute estimation.py. Output is placed in a file 'results.txt' in the 'empirical\_application' folder. To generate the files in the 'data' folder, first download the Cai et al. (2015) data from [AEAweb](https://www.aeaweb.org/articles?id=10.1257/app.20130442) and extract the contents directly to the cai\_data folder. Then run construct\_dataset.py.
+To run the empirical application, execute estimation.py. Output is placed in a file 'results.txt' in the 'empirical\_application' folder. To generate the files in the 'data' folder, first download the Cai et al. (2015) data from [AEAweb](https://www.aeaweb.org/articles?id=10.1257/app.20130442) and extract the contents directly to the cai\_data folder. Run the do file 'rawnet.do' from the extracted 'do' folder. Then run construct\_dataset.py.
 
