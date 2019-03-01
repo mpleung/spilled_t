@@ -107,10 +107,10 @@ print 'True Average Spillover Effect: %f' % true_ATE
 print '\n\\begin{table}[h]'
 print '\centering'
 print '\caption{Nonparametric Estimator}'
-table = pd.DataFrame(network_size, eff_obs[0,:,:].mean(axis=0), eff_obs[1,:,:].mean(axis=0), np.vstack([ATE_ests[:,:].mean(axis=0), ATE_SE_ests[:,:].mean(axis=0), ATE_CI_covers[:,:].mean(axis=0), ATE_SE_failures]))
+table = pd.DataFrame(np.vstack([network_size, eff_obs[0,:,:].mean(axis=0), eff_obs[1,:,:].mean(axis=0), ATE_ests[:,:].mean(axis=0), ATE_SE_ests[:,:].mean(axis=0), ATE_CI_covers[:,:].mean(axis=0), ATE_SE_failures]))
 table.index = ['$n$', 'Eff.\ $n$ $(0,1,3)$', 'Eff.\ $n$ $(0,0,3)$', 'Estimate', 'SE', 'Coverage', 'Failures']
 print table.to_latex(float_format = lambda x: '%1.2f' % x, \
-        header=False, escape=False)
+                header=False, escape=False)
 print '\end{table}'
 
 # OLS table
